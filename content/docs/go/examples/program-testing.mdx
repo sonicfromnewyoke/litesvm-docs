@@ -29,7 +29,8 @@ func TestLoadProgram(t *testing.T) {
     }
     defer svm.Close()
 
-    // Configure for program testing.
+    // Configure for program testing. Setters are infallible in practice;
+    // discarding the return keeps the example readable.
     _ = svm.SetSigverify(false)
     _ = svm.SetBlockhashCheck(false)
     _ = svm.SetSysvars()
@@ -80,7 +81,8 @@ func TestProgramEndToEnd(t *testing.T) {
     }
     defer svm.Close()
 
-    // Wide-open config: faster tests, less plumbing.
+    // Wide-open config: faster tests, less plumbing. Setters are infallible
+    // in practice; discarding the return keeps the example readable.
     _ = svm.SetSigverify(false)
     _ = svm.SetBlockhashCheck(false)
     _ = svm.SetSysvars()
@@ -102,7 +104,10 @@ func TestProgramEndToEnd(t *testing.T) {
     dataAddr := solana.NewWallet().PublicKey()
     dataPayload := make([]byte, 100)
 
-    rent, _ := svm.MinimumBalanceForRentExemption(len(dataPayload))
+    rent, err := svm.MinimumBalanceForRentExemption(len(dataPayload))
+    if err != nil {
+        t.Fatal(err)
+    }
     acct, err := litesvm.NewAccount(rent, dataPayload, programID, false, 0)
     if err != nil {
         t.Fatal(err)
@@ -114,14 +119,20 @@ func TestProgramEndToEnd(t *testing.T) {
     }
 
     // Fund a payer that will sign the test instruction.
-    priv, _ := solana.NewRandomPrivateKey()
+    priv, err := solana.NewRandomPrivateKey()
+    if err != nil {
+        t.Fatal(err)
+    }
     payer := priv.PublicKey()
     if err := svm.Airdrop(payer, 1_000_000_000); err != nil {
         t.Fatal(err)
     }
 
     // Build an instruction against the program.
-    bh, _ := svm.LatestBlockhash()
+    bh, err := svm.LatestBlockhash()
+    if err != nil {
+        t.Fatal(err)
+    }
     ix := &solana.GenericInstruction{
         ProgID: programID,
         AccountValues: solana.AccountMetaSlice{
@@ -147,7 +158,10 @@ func TestProgramEndToEnd(t *testing.T) {
     }); err != nil {
         t.Fatal(err)
     }
-    txBytes, _ := tx.MarshalBinary()
+    txBytes, err := tx.MarshalBinary()
+    if err != nil {
+        t.Fatal(err)
+    }
 
     // Execute and inspect.
     out, err := svm.SendLegacyTransaction(txBytes)
@@ -178,11 +192,18 @@ func TestProgramEndToEnd(t *testing.T) {
 For tests that need standard programs (SPL Token, Memo, ...):
 
 ```go
-svm, _ := litesvm.New()
+svm, err := litesvm.New()
+if err != nil {
+    t.Fatal(err)
+}
 defer svm.Close()
 
-_ = svm.SetDefaultPrograms() // SPL Token, Memo, etc.
-_ = svm.WithNativeMints()    // wrapped-SOL mint
+if err := svm.SetDefaultPrograms(); err != nil { // SPL Token, Memo, etc.
+    t.Fatal(err)
+}
+if err := svm.WithNativeMints(); err != nil {    // wrapped-SOL mint
+    t.Fatal(err)
+}
 ```
 
 <Callout type="info">

@@ -70,10 +70,13 @@ if !sim.IsOk() {
 t.Logf("would use %d compute units", sim.ComputeUnits())
 t.Logf("logs: %v", sim.Logs())
 
-posts, _ := sim.PostAccounts()
+posts, err := sim.PostAccounts()
+if err != nil {
+    t.Fatal(err)
+}
 for _, p := range posts {
-    defer p.Account.Close()
     t.Logf("%s: %d lamports", p.Address, p.Account.Lamports())
+    p.Account.Close()
 }
 ```
 
@@ -158,10 +161,19 @@ func (s *LiteSVM) ExpireBlockhash() error
 Advance past the current blockhash so the next `LatestBlockhash` returns a new value. Useful for testing blockhash-expiry edge cases.
 
 ```go
-bh1, _ := svm.LatestBlockhash()
-_ = svm.ExpireBlockhash()
-bh2, _ := svm.LatestBlockhash()
+bh1, err := svm.LatestBlockhash()
+if err != nil {
+    t.Fatal(err)
+}
+if err := svm.ExpireBlockhash(); err != nil {
+    t.Fatal(err)
+}
+bh2, err := svm.LatestBlockhash()
+if err != nil {
+    t.Fatal(err)
+}
 // bh1 != bh2
+_, _ = bh1, bh2
 ```
 
 ## Transaction History
@@ -170,10 +182,14 @@ Transaction history is on by default. Adjust the capacity (or disable dedup) wit
 
 ```go
 // Cap history at 100 entries.
-_ = svm.SetTransactionHistory(100)
+if err := svm.SetTransactionHistory(100); err != nil {
+    t.Fatal(err)
+}
 
 // Disable dedup entirely (allows replaying identical transactions).
-_ = svm.SetTransactionHistory(0)
+if err := svm.SetTransactionHistory(0); err != nil {
+    t.Fatal(err)
+}
 ```
 
 Look up a prior transaction by signature:
@@ -185,3 +201,40 @@ if prior != nil {
     t.Logf("found: %s, fee=%d", prior.Signature(), prior.Fee())
 }
 ```
+
+## BuildTransferTx (test helper)
+
+```go
+func BuildTransferTx(
+    payerSeed [32]byte,
+    to solana.PublicKey,
+    lamports uint64,
+    blockhash solana.Hash,
+) ([]byte, error)
+```
+
+Produces a bincode-encoded, signed legacy `Transaction` transferring `lamports` from the keypair derived from `payerSeed` to `to`, using `blockhash`. The returned bytes are ready to hand to `SendLegacyTransaction`.
+
+```go
+var seed [32]byte
+copy(seed[:], somePayerSeedBytes)
+
+bh, err := svm.LatestBlockhash()
+if err != nil {
+    t.Fatal(err)
+}
+txBytes, err := litesvm.BuildTransferTx(seed, recipient, 1_000_000_000, bh)
+if err != nil {
+    t.Fatal(err)
+}
+
+out, err := svm.SendLegacyTransaction(txBytes)
+if err != nil {
+    t.Fatal(err)
+}
+defer out.Close()
+```
+
+<Callout type="info">
+  This exists to bootstrap tests and for callers who want to avoid pulling in `solana-go`. Once you are building real transactions, prefer the `solana-go` path shown above - it scales to multi-instruction transactions, v0 messages, and arbitrary programs.
+</Callout>

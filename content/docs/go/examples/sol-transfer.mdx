@@ -43,11 +43,17 @@ func TestSolTransfer(t *testing.T) {
     }
 
     // Check initial balance.
-    senderInitial, _, _ := svm.Balance(payer)
+    senderInitial, _, err := svm.Balance(payer)
+    if err != nil {
+        t.Fatal(err)
+    }
     t.Logf("sender initial: %.3f SOL", float64(senderInitial)/1e9)
 
     // Build, sign, and encode the transfer.
-    blockhash, _ := svm.LatestBlockhash()
+    blockhash, err := svm.LatestBlockhash()
+    if err != nil {
+        t.Fatal(err)
+    }
     ix := system.NewTransferInstruction(1_000_000_000, payer, recipient).Build()
     tx, err := solana.NewTransaction(
         []solana.Instruction{ix},
@@ -82,8 +88,14 @@ func TestSolTransfer(t *testing.T) {
     }
 
     // Check final balances.
-    senderFinal, _, _ := svm.Balance(payer)
-    recipientFinal, _, _ := svm.Balance(recipient)
+    senderFinal, _, err := svm.Balance(payer)
+    if err != nil {
+        t.Fatal(err)
+    }
+    recipientFinal, _, err := svm.Balance(recipient)
+    if err != nil {
+        t.Fatal(err)
+    }
     t.Logf("sender final:    %.6f SOL", float64(senderFinal)/1e9)
     t.Logf("recipient final: %.3f SOL", float64(recipientFinal)/1e9)
     t.Logf("compute units:   %d", out.ComputeUnits())

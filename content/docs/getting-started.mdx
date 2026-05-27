@@ -60,9 +60,12 @@ bun add @solana/kit @solana/kit-plugin-litesvm @solana/kit-plugin-signer @solana
 </Tab>
 <Tab value="Go">
 
-Add the LiteSVM Go bindings and `solana-go` (used for keypairs, instructions, and transaction building) to your module:
+Initialize a Go module first (Go needs a module before `go get` can resolve dependencies), then add the LiteSVM Go bindings and `solana-go` (used for keypairs, instructions, and transaction building):
 
 ```bash
+mkdir mytest && cd mytest
+go mod init mytest
+
 go get github.com/LiteSVM/litesvm-go@latest
 go get github.com/gagliardetto/solana-go@latest
 ```
@@ -100,11 +103,9 @@ touch basic-test.ts
 </Tab>
 <Tab value="Go">
 
-Initialize a Go module and create a test file:
+Create a test file in the module you just initialized:
 
 ```bash
-mkdir mytest && cd mytest
-go mod init mytest
 touch basic_test.go
 ```
 
@@ -190,7 +191,10 @@ func TestCreateAccount(t *testing.T) {
     defer svm.Close()
 
     // Create a test account
-    priv, _ := solana.NewRandomPrivateKey()
+    priv, err := solana.NewRandomPrivateKey()
+    if err != nil {
+        t.Fatal(err)
+    }
     user := priv.PublicKey()
 
     // Fund the account with SOL
@@ -199,7 +203,13 @@ func TestCreateAccount(t *testing.T) {
     }
 
     // Check the balance
-    balance, _, _ := svm.Balance(user)
+    balance, ok, err := svm.Balance(user)
+    if err != nil {
+        t.Fatal(err)
+    }
+    if !ok {
+        t.Fatal("account missing after airdrop")
+    }
     if balance != 1_000_000_000 {
         t.Fatalf("balance = %d, want 1_000_000_000", balance)
     }
@@ -393,7 +403,10 @@ func TestTransfer(t *testing.T) {
     defer svm.Close()
 
     // Create two accounts
-    alicePriv, _ := solana.NewRandomPrivateKey()
+    alicePriv, err := solana.NewRandomPrivateKey()
+    if err != nil {
+        t.Fatal(err)
+    }
     alice := alicePriv.PublicKey()
     bob := solana.NewWallet().PublicKey()
 
@@ -403,7 +416,10 @@ func TestTransfer(t *testing.T) {
     }
 
     // Build, sign, and encode the transfer
-    blockhash, _ := svm.LatestBlockhash()
+    blockhash, err := svm.LatestBlockhash()
+    if err != nil {
+        t.Fatal(err)
+    }
     ix := system.NewTransferInstruction(1_000_000_000, alice, bob).Build()
     tx, err := solana.NewTransaction(
         []solana.Instruction{ix},
@@ -421,7 +437,10 @@ func TestTransfer(t *testing.T) {
     }); err != nil {
         t.Fatal(err)
     }
-    txBytes, _ := tx.MarshalBinary()
+    txBytes, err := tx.MarshalBinary()
+    if err != nil {
+        t.Fatal(err)
+    }
 
     // Send it (execution happens immediately)
     out, err := svm.SendLegacyTransaction(txBytes)
@@ -435,8 +454,14 @@ func TestTransfer(t *testing.T) {
     }
 
     // Check new balances
-    bobBal, _, _ := svm.Balance(bob)
-    aliceBal, _, _ := svm.Balance(alice)
+    bobBal, _, err := svm.Balance(bob)
+    if err != nil {
+        t.Fatal(err)
+    }
+    aliceBal, _, err := svm.Balance(alice)
+    if err != nil {
+        t.Fatal(err)
+    }
     if bobBal != 1_000_000_000 {
         t.Fatalf("bob balance = %d, want 1_000_000_000", bobBal)
     }

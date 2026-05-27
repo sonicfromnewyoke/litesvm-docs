@@ -20,12 +20,20 @@ func (s *LiteSVM) WarpToSlot(slot uint64) error
 Advance the internal clock to a specific slot.
 
 ```go
-before, _ := svm.Clock()
+before, err := svm.Clock()
+if err != nil {
+    t.Fatal(err)
+}
 t.Logf("current slot: %d", before.Slot)
 
-_ = svm.WarpToSlot(10_000_000)
+if err := svm.WarpToSlot(10_000_000); err != nil {
+    t.Fatal(err)
+}
 
-after, _ := svm.Clock()
+after, err := svm.Clock()
+if err != nil {
+    t.Fatal(err)
+}
 t.Logf("new slot:     %d", after.Slot)
 ```
 
@@ -62,11 +70,16 @@ func (s *LiteSVM) SetClock(c Clock) error
 Overwrite the Clock sysvar. Read it, mutate fields, write it back when you need control over `Epoch` or `UnixTimestamp` (which `WarpToSlot` does not update).
 
 ```go
-c, _ := svm.Clock()
+c, err := svm.Clock()
+if err != nil {
+    t.Fatal(err)
+}
 c.Slot = 1_000
 c.Epoch = 10
 c.UnixTimestamp = 1_735_689_600
-_ = svm.SetClock(c)
+if err := svm.SetClock(c); err != nil {
+    t.Fatal(err)
+}
 ```
 
 <Callout type="info">
@@ -89,7 +102,10 @@ func (s *LiteSVM) SetRent(r Rent) error
 ```
 
 ```go
-r, _ := svm.Rent()
+r, err := svm.Rent()
+if err != nil {
+    t.Fatal(err)
+}
 t.Logf("lamports/byte-year: %d", r.LamportsPerByteYear)
 t.Logf("exemption threshold: %.2f", r.ExemptionThreshold)
 t.Logf("burn percent: %d", r.BurnPercent)
@@ -103,7 +119,10 @@ func (s *LiteSVM) MinimumBalanceForRentExemption(dataLen int) (uint64, error)
 
 ```go
 for _, size := range []int{0, 100, 1024} {
-    min, _ := svm.MinimumBalanceForRentExemption(size)
+    min, err := svm.MinimumBalanceForRentExemption(size)
+    if err != nil {
+        t.Fatal(err)
+    }
     t.Logf("%4d bytes -> %d lamports", size, min)
 }
 ```
@@ -124,7 +143,10 @@ func (s *LiteSVM) SetEpochSchedule(e EpochSchedule) error
 ```
 
 ```go
-es, _ := svm.EpochSchedule()
+es, err := svm.EpochSchedule()
+if err != nil {
+    t.Fatal(err)
+}
 t.Logf("slots per epoch: %d", es.SlotsPerEpoch)
 t.Logf("first normal epoch: %d", es.FirstNormalEpoch)
 t.Logf("first normal slot:  %d", es.FirstNormalSlot)
@@ -160,8 +182,13 @@ func (s *LiteSVM) SetLastRestartSlot(slot uint64) error
 ```
 
 ```go
-last, _ := svm.LastRestartSlot()
-_ = svm.SetLastRestartSlot(last + 1)
+last, err := svm.LastRestartSlot()
+if err != nil {
+    t.Fatal(err)
+}
+if err := svm.SetLastRestartSlot(last + 1); err != nil {
+    t.Fatal(err)
+}
 ```
 
 ### SlotHashes / SetSlotHashes
@@ -181,7 +208,10 @@ func (s *LiteSVM) SetSlotHashes(items []SlotHash) error
 `SlotHistory` is a ~128 KB bitvec; `litesvm-go` exposes it as a handle rather than a slice.
 
 ```go
-sh := litesvm.NewSlotHistory()
+sh, err := litesvm.NewSlotHistory()
+if err != nil {
+    t.Fatal(err)
+}
 defer sh.Close()
 
 sh.Add(42)
@@ -193,29 +223,36 @@ case litesvm.SlotHistoryNotFound:
     // ...
 case litesvm.SlotHistoryTooOld:
     // ...
+case litesvm.SlotHistoryFuture:
+    // ...
 }
 
-_ = svm.SetSlotHistory(sh)
+if err := svm.SetSlotHistory(sh); err != nil {
+    t.Fatal(err)
+}
 ```
 
-| Method                            | Description                            |
-| --------------------------------- | -------------------------------------- |
-| `litesvm.NewSlotHistory()`        | Empty handle                           |
-| `sh.Add(slot uint64)`             | Record a slot                          |
-| `sh.Check(slot uint64) SlotHistoryCheck` | `Found` / `NotFound` / `TooOld`  |
-| `sh.Oldest() uint64`              | Oldest slot tracked                    |
-| `sh.Newest() uint64`              | Newest slot tracked                    |
-| `sh.NextSlot() uint64`            | Next slot to record                    |
-| `sh.SetNextSlot(slot uint64) error` | Override the next-slot marker       |
-| `sh.Close()`                      | Release the handle                     |
-| `svm.SlotHistory() (*SlotHistory, error)` | Read into a fresh handle       |
-| `svm.SetSlotHistory(*SlotHistory) error`  | Install on the SVM             |
+| Method                                                | Description                                  |
+| ----------------------------------------------------- | -------------------------------------------- |
+| `litesvm.NewSlotHistory() (*SlotHistory, error)`      | Empty handle                                 |
+| `sh.Add(slot uint64)`                                 | Record a slot                                |
+| `sh.Check(slot uint64) SlotHistoryCheck`              | `Future` / `TooOld` / `Found` / `NotFound`   |
+| `sh.Oldest() uint64`                                  | Oldest slot tracked                          |
+| `sh.Newest() uint64`                                  | Newest slot tracked                          |
+| `sh.NextSlot() uint64`                                | Next slot to record                          |
+| `sh.SetNextSlot(slot uint64) error`                   | Override the next-slot marker                |
+| `sh.Close()`                                          | Release the handle                           |
+| `svm.SlotHistory() (*SlotHistory, error)`             | Read into a fresh handle                     |
+| `svm.SetSlotHistory(*SlotHistory) error`              | Install on the SVM                           |
 
 ## Stake History
 
 ```go
 type StakeHistoryItem struct {
-    // See litesvm-go for the full struct.
+    Epoch        uint64
+    Effective    uint64
+    Activating   uint64
+    Deactivating uint64
 }
 
 func (s *LiteSVM) StakeHistory() ([]StakeHistoryItem, error)
@@ -228,7 +265,10 @@ Use `WarpToSlot` for plain slot-based advancement, `SetClock` for full control:
 
 ```go
 func TestTimeLockedVault(t *testing.T) {
-    svm, _ := litesvm.New()
+    svm, err := litesvm.New()
+    if err != nil {
+        t.Fatal(err)
+    }
     defer svm.Close()
 
     const unlockSlot = uint64(10_000)
@@ -236,15 +276,23 @@ func TestTimeLockedVault(t *testing.T) {
     // Setup: create the time-locked account ...
 
     // Test 1: Try to withdraw before unlock (should fail)
-    before, _ := svm.Clock()
+    before, err := svm.Clock()
+    if err != nil {
+        t.Fatal(err)
+    }
     t.Logf("current slot: %d", before.Slot)
     // ... attempt withdrawal, expect failure ...
 
     // Warp time forward past unlock slot
-    _ = svm.WarpToSlot(unlockSlot + 1)
+    if err := svm.WarpToSlot(unlockSlot + 1); err != nil {
+        t.Fatal(err)
+    }
 
     // Test 2: Try to withdraw after unlock (should succeed)
-    after, _ := svm.Clock()
+    after, err := svm.Clock()
+    if err != nil {
+        t.Fatal(err)
+    }
     t.Logf("new slot: %d", after.Slot)
     // ... attempt withdrawal, expect success ...
 }

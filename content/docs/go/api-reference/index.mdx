@@ -81,6 +81,7 @@ defer svm.Close()
 | `LatestBlockhash() (solana.Hash, error)`                | Current blockhash                            |
 | `ExpireBlockhash() error`                               | Advance to a new blockhash                   |
 | `GetTransaction(signature) *TxOutcome`                  | Look up transaction in history (nil if absent) |
+| `litesvm.BuildTransferTx(payerSeed, to, lamports, blockhash) ([]byte, error)` | Test helper that builds a signed legacy transfer without pulling in `solana-go` |
 
 ### Configuration
 
@@ -122,3 +123,9 @@ defer svm.Close()
 | `SetSlotHistory(*SlotHistory) error`              | Overwrite the SlotHistory sysvar     |
 | `StakeHistory() ([]StakeHistoryItem, error)`      | Read the StakeHistory sysvar         |
 | `SetStakeHistory([]StakeHistoryItem) error`       | Overwrite the StakeHistory sysvar    |
+
+### Utilities
+
+| Method                | Description                                                            |
+| --------------------- | ---------------------------------------------------------------------- |
+| `litesvm.Version() string` | Version string reported by the underlying Rust `litesvm` crate    |
