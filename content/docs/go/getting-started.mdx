@@ -26,6 +26,14 @@ A fresh `LiteSVM` handle exposes airdrops, transactions (legacy + v0), simulatio
 <Step>
 ### Install the module
 
+`go get` resolves dependencies into a Go module, so initialize one first if you do not already have a `go.mod`:
+
+```bash
+go mod init mytest
+```
+
+Then add the module:
+
 ```bash
 go get github.com/LiteSVM/litesvm-go
 ```
