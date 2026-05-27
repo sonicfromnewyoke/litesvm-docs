@@ -35,11 +35,14 @@ Complete, runnable examples demonstrating `litesvm-go`. Each example is a self-c
 ## Running Examples
 
 ```bash
-# 1) Add the module to your Go project
+# 1) Initialize a Go module (skip if you already have a go.mod)
+go mod init mytest
+
+# 2) Add the dependencies to your Go project
 go get github.com/LiteSVM/litesvm-go
 go get github.com/gagliardetto/solana-go
 
-# 2) Drop an example into a _test.go file and run
+# 3) Drop an example into a _test.go file and run
 go test ./...
 ```
 
